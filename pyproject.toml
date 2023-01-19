@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fasta-tools"
+version = "0.0.1"
+authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
+description = "Simple FASTA file tools to parse, edit, subset, and split FASTA files"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/cody-mar10/fasta-tools"
+"Bug Tracker" = "https://github.com/cody-mar10/fasta-tools/issues"
