@@ -3,8 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fasta-tools"
-version = "0.0.1"
+
+name = "pyfastatools"
+version = "0.0.3"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
 description = "Simple FASTA file tools to parse, edit, subset, and split FASTA files"
 readme = "README.md"
@@ -14,6 +15,10 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
 ]
+dependencies = ["more-itertools >= 8.2"]
+
+[project.scripts]
+fastatools = "fastatools:main.main"
 
 [project.urls]
 "Homepage" = "https://github.com/cody-mar10/fasta-tools"
