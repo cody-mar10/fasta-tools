@@ -1,65 +1,61 @@
-import argparse
-from pathlib import Path
-from typing import Dict, Iterator, Tuple, Union
+import bz2
+import gzip
+import lzma
+from dataclasses import dataclass
+from enum import Enum
+from typing import Callable, Dict, TextIO, Tuple
 
-FilePath = Union[str, Path]
-SequenceRecord = Tuple[str, str]
-FastaParser_T = Iterator[SequenceRecord]
-EnumeratedFastaParser_T = Iterator[Tuple[int, SequenceRecord]]
-GenomicORFFastaParser_T = Iterator[Tuple[str, SequenceRecord]]
+from fastatools.types import FilePath
 
-
-def has_stops(sequence: str, stop_char: str = "*"):
-    return stop_char in sequence
+OpenFn = Callable[..., TextIO]
 
 
-def _add_common_args(
-    argparser: argparse.ArgumentParser,
-    requires_output: bool = True,
-    requires_outdir: bool = False,
-):
-    common_args = argparser.add_argument_group("REQUIRED I/O")
-    # TODO: add support for multiple fasta files
-    common_args.add_argument("-i", "--input", required=True, help="input fasta file")
-
-    if requires_outdir:
-        # overrides output
-        common_args.add_argument(
-            "-o", "--outdir", required=True, help="output directory"
-        )
-    elif requires_output:
-        common_args.add_argument(
-            "-o", "--output", required=True, help="output fasta file"
-        )
+@dataclass
+class CompresssionInfo:
+    open: OpenFn
+    extension: str
+    signature: Tuple[int, ...]
 
 
-class _HelpAction(argparse._HelpAction):
-    def __call__(
-        self,
-        parser: argparse.ArgumentParser,
-        namespace: argparse.Namespace,
-        values,
-        option_string=None,
-    ):
-        parser.print_help()
-
-        # retrieve subparsers from parser
-        subparsers_actions = [
-            action
-            for action in parser._actions
-            if isinstance(action, argparse._SubParsersAction)
-        ]
-        for subparsers_action in subparsers_actions:
-            for choice, subparser in subparsers_action.choices.items():
-                print(f"{choice:10s}{subparser.description}")
-
-        parser.exit()
+class Compression(Enum):
+    BZIP2 = CompresssionInfo(bz2.open, "bz2", (0x42, 0x5A, 0x68))
+    GZIP = CompresssionInfo(gzip.open, "gz", (0x1F, 0x8B))
+    XZ = CompresssionInfo(lzma.open, "xz", (0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00, 0x00))
+    UNCOMPRESSED = CompresssionInfo(open, "", ())
 
 
-def _read_mapfile(mapfile: FilePath, sep: str = "\t") -> Dict[str, str]:
-    with open(mapfile) as fp:
-        mapper: Dict[str, str] = dict()
-        for line in fp:
-            key, value = line.rstrip().split(sep)
-            mapper[key] = value
+_SIGNATURE_SIZE = 8
+
+
+def detect_compression(file: FilePath) -> Compression:
+    with open(file, "rb") as fp:
+        signature = fp.peek(_SIGNATURE_SIZE)[:_SIGNATURE_SIZE]
+
+    for opt in Compression:
+        if opt != Compression.UNCOMPRESSED:
+            siglen = len(opt.value.signature)
+            if tuple(signature[:siglen]) == opt.value.signature:
+                return opt
+    return Compression.UNCOMPRESSED
+
+
+def split_genome_and_orf(name: str) -> Tuple[str, int]:
+    split = name.rsplit("_", 1)
+
+    try:
+        genome, orf = split
+    except ValueError:
+        genome = split[0]
+        orf = 0
+    else:
+        orf = int(orf)
+
+    return genome, orf
+
+
+def read_rename_file(file: FilePath) -> Dict[str, str]:
+    # TODO: generalize
+    # TODO: use FastaHeader methods to get name
+    with open(file) as fp:
+        mapper = dict(line.rstrip().split("\t") for line in fp)
         return mapper
