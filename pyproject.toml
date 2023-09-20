@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 
 name = "pyfastatools"
-version = "0.0.3"
+version = "1.0.0"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
-description = "Simple FASTA file tools to parse, edit, subset, and split FASTA files"
+description = "Simple FASTA file tools to parse, edit, subset, split, and perform stats on FASTA files"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.7"
@@ -17,9 +17,26 @@ classifiers = [
 ]
 dependencies = ["more-itertools >= 8.2"]
 
+[project.optional-dependencies]
+"cli" = [
+    # python version will also have to be updated
+    "pydantic>=2,<2.1",
+    "pydantic-argparse @ git+https://github.com/cody-mar10/pydantic-argparse.git",
+]
+
 [project.scripts]
-fastatools = "fastatools:main.main"
+pyfasta = "fastatools:cli.main"
 
 [project.urls]
 "Homepage" = "https://github.com/cody-mar10/fasta-tools"
 "Bug Tracker" = "https://github.com/cody-mar10/fasta-tools/issues"
+
+[tool.ruff]
+src = ["src"]
+line-length = 90
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"] # allow unused imports in `__init__.py`
+
+[tool.coverage.run]
+plugins = ["covdefaults"]
