@@ -1,18 +1,20 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core >=0.4.3", "nanobind >=2.2"]
+build-backend = "scikit_build_core.build"
 
 [project]
 
 name = "pyfastatools"
-version = "1.0.0"
+version = "2.0.0"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
 description = "Simple FASTA file tools to parse, edit, subset, split, and perform stats on FASTA files"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: C++ :: 17",
+    "Programming Language :: Python :: Implementation :: CPython",
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = ["more-itertools >= 8.2"]
@@ -21,11 +23,12 @@ dependencies = ["more-itertools >= 8.2"]
 "cli" = [
     # python version will also have to be updated
     "pydantic>=2,<2.1",
+    # also need:
     "pydantic-argparse @ git+https://github.com/cody-mar10/pydantic-argparse.git",
 ]
 
 [project.scripts]
-pyfasta = "fastatools:cli.main"
+pyfasta = "pyfastatools:cli.main"
 
 [project.urls]
 "Homepage" = "https://github.com/cody-mar10/fasta-tools"
@@ -40,3 +43,8 @@ line-length = 90
 
 [tool.coverage.run]
 plugins = ["covdefaults"]
+
+[tool.scikit-build]
+minimum-version = "0.4"
+build-dir = "build/{wheel_tag}"
+wheel.py-api = "cp312"
