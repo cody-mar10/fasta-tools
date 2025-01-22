@@ -3,8 +3,10 @@ import gzip
 import lzma
 from dataclasses import dataclass
 from enum import Enum
+from textwrap import wrap
 from typing import Callable, Dict, TextIO, Tuple
 
+from pyfastatools._fastatools import Record
 from pyfastatools._types import FilePath
 
 OpenFn = Callable[..., TextIO]
@@ -59,3 +61,17 @@ def read_rename_file(file: FilePath) -> Dict[str, str]:
     with open(file) as fp:
         mapper = dict(line.rstrip().split("\t") for line in fp)
         return mapper
+
+
+def write_fasta(record: Record, fobj: TextIO, width: int = 75):
+    """Write a FASTA record to a file object.
+
+    Args:
+        record (Record): A FASTA record object.
+        fobj (TextIO): A file object to write to.
+        width (int, optional): The width of the sequence line. Defaults to 75.
+    """
+
+    fobj.write(f">{record.name} {record.desc}\n")
+    for line in wrap(record.seq, width=width):
+        fobj.write(f"{line}\n")
