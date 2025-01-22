@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 
 name = "pyfastatools"
-version = "2.1.0"
+version = "2.1.1"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
 description = "Simple FASTA file tools to parse, edit, subset, split, and perform stats on FASTA files"
 readme = "README.md"
@@ -13,22 +13,17 @@ license = { file = "LICENSE" }
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: C++ :: 17",
+    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: Implementation :: CPython",
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = ["more-itertools >= 8.2"]
 
-[project.optional-dependencies]
-"cli" = [
-    # python version will also have to be updated
-    "pydantic>=2,<2.1",
-    # also need:
-    "pydantic-argparse @ git+https://github.com/cody-mar10/pydantic-argparse.git",
-]
+# [project.optional-dependencies]
+# "cli" = []
 
-[project.scripts]
-pyfasta = "pyfastatools:cli.main"
+# [project.scripts]
+# pyfasta = "pyfastatools:cli.main"
 
 [project.urls]
 "Homepage" = "https://github.com/cody-mar10/fasta-tools"
