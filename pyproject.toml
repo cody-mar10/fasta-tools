@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 
 name = "pyfastatools"
-version = "2.0.0"
+version = "2.1.0"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
 description = "Simple FASTA file tools to parse, edit, subset, split, and perform stats on FASTA files"
 readme = "README.md"
