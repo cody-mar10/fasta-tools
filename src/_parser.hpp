@@ -5,10 +5,18 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <iostream>
+#include <nanobind/nanobind.h>
 
+#define SEQLINESIZE 75
+#define MAXHEADERLEN 150
 struct Record {
+    using Header = std::pair<std::string, std::string>;
+
 private:
-    inline std::pair<std::string, std::string> split(const std::string& name) {
+    std::string data;
+
+    inline Header split(const std::string& name) {
 
         std::size_t space_pos = name.find(' ');
 
@@ -17,6 +25,38 @@ private:
         }
 
         return std::make_pair(name.substr(0, space_pos), name.substr(space_pos + 1));
+    }
+
+
+    inline void read(std::istream& is, std::string& bufline) {
+        if (bufline.empty()) {
+            std::getline(is, bufline);
+        }
+
+        if (bufline[0] != '>') {
+            // should throw an error but what if EOF?
+            return;
+        }
+
+        Header header = this->split(bufline);
+
+        while (std::getline(is, bufline)) {
+            if (bufline.empty()) {
+                continue;
+            }
+
+            // at next record
+            if (bufline[0] == '>') {
+                break;
+            }
+
+            this->seq += bufline;
+        }
+
+        // remove > symbol from beginning of name
+        // BUG: if the header is just > without a name?
+        this->name = std::move(header.first.substr(1));
+        this->desc = std::move(header.second);
     }
 
 public:
@@ -53,6 +93,11 @@ public:
         this->seq = std::move(seq);
     }
 
+    // constructor that reads from a stream
+    Record(std::istream& is, std::string& bufline) {
+        this->read(is, bufline);
+    }
+
     inline bool empty() {
         return this->name.empty() && this->desc.empty() && this->seq.empty();
     }
@@ -63,6 +108,47 @@ public:
         this->seq.clear();
     }
 
+    std::string to_string() const {
+        std::string str_record;
+        size_t num_seq_lines = this->seq.size() / SEQLINESIZE + 1;
+
+        str_record.reserve(this->seq.size() + MAXHEADERLEN + num_seq_lines);
+
+        str_record += this->header();
+        str_record += '\n';
+
+        for (size_t i = 0; i < this->seq.size(); i += SEQLINESIZE) {
+            str_record += this->seq.substr(i, SEQLINESIZE);
+            str_record += '\n';
+        }
+
+        return str_record;
+    }
+
+    std::string header() const {
+        std::string str;
+        str.reserve(this->name.size() + this->desc.size() + 10);
+        str += this->name;
+
+        if (!this->desc.empty()) {
+            str += ' ';
+            str += this->desc;
+        }
+
+        return str;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, const Record& record) {
+        return os << record.to_string();
+    }
+
+    bool operator==(const Record& other) const {
+        return this->name == other.name && this->desc == other.desc && this->seq == other.seq;
+    }
+
+    bool operator!=(const Record& other) const {
+        return !(*this == other);
+    }
 
 };
 
@@ -99,11 +185,16 @@ public:
         this->file.close();
     }
 
+    inline bool eof() {
+        return this->file.eof();
+    }
+
     inline bool has_next() {
-        return !(this->file).eof();
+        return !(this->eof());
     };
 
     Record next();
+    Record py_next();
     Records all();
     Records take(size_t n);
     void refresh();

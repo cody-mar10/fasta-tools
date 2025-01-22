@@ -4,37 +4,15 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <iterator>
 
 // Parser public methods
 
+/* 
+Return the next FASTA record
+*/
 Record Parser::next() {
-    if (!this->has_next()) {
-        return Record();
-    }
-
-    // remove > symbol from beginning of name
-    // TODO: need to check if line is not empty?
-    // technically that is done in the while loop
-    // and the constructor requires the first line to start with >
-    // BUG: if the header is just > without a name?
-    std::string name{ std::move(this->line.substr(1)) };
-    std::string seq{ "" };
-
-    while (std::getline(this->file, this->line)) {
-        if (this->line.empty()) {
-            continue;
-        }
-
-        if (this->line[0] == '>') {
-            break;
-        }
-
-        seq += this->line;
-    }
-
-    Record record(std::move(name), std::move(seq));
-
-    return record;
+    return Record(this->file, this->line);
 }
 
 /*
@@ -67,6 +45,9 @@ Records Parser::take(size_t n) {
     return records;
 }
 
+/*
+Refresh the file stream to read from the beginning again.
+*/
 void Parser::refresh() {
     this->file.clear();
     this->file.seekg(0);
