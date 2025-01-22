@@ -1,7 +1,7 @@
 from pathlib import Path
-from typing import Iterator, NamedTuple
+from typing import Iterator, NamedTuple, Union
 
-FilePath = str | Path
+FilePath = Union[str, Path]
 
 
 class PyRecord(NamedTuple):
@@ -22,6 +22,7 @@ class PyRecord(NamedTuple):
 class PyParser:
     def __init__(self, filename: FilePath):
         self.filename = Path(filename)
+        self._parser = iter(self)
 
     def _parse(self) -> Iterator[PyRecord]:
         with self.filename.open() as fp:
@@ -49,13 +50,18 @@ class PyParser:
         return self._parse()
 
     def __next__(self):
-        it = self._parse()
-        return next(it)
+        return next(self._parser)
 
     def all(self) -> list[PyRecord]:
+        """Return a list of all FASTA records in the file. This will reset the file pointer
+        so that all records in the FASTA file are guaranteed to be returned.
+
+        Returns:
+            list[PyRecord]: list of `PyRecord` objects, each having a `name`, `desc`, and `seq` attribute.
+        """
+        # reset just in case file was advanced
         return list(self._parse())
 
     def take(self, n: int) -> list[PyRecord]:
-        it = self._parse()
-        records = [next(it) for _ in range(n)]
+        records = [next(self) for _ in range(n)]
         return records
