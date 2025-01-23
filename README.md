@@ -27,7 +27,7 @@ Then you can parse this file in python like this:
 from pyfastatools import Parser
 
 for record in Parser("proteins.faa"):
-    print(record.name, record.seq)
+    print(record.header.name, record.seq)
 ```
 
 which will print:
