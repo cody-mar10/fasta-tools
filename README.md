@@ -1,4 +1,4 @@
-# C++ bindings for FASTA file parsing
+# FASTA file parsing written in C++ with Python bindings
 
 ## Installation
 
