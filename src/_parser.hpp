@@ -3,31 +3,105 @@
 
 #include <fstream>
 #include <string>
-#include <tuple>
 #include <vector>
 #include <iostream>
-#include <nanobind/nanobind.h>
+#include <algorithm>
 
 #define SEQLINESIZE 75
-#define MAXHEADERLEN 150
-struct Record {
-    using Header = std::pair<std::string, std::string>;
+#define MINGENOMELEN 5000
+
+enum RecordType {
+    GENOME,
+    GENE,
+    PROTEIN,
+    NUCLEOTIDE,
+    UNKNOWN,
+};
+
+const RecordType DEFAULT_TYPE{ RecordType::UNKNOWN };
+const std::string AMINO_ACID_DISCRIMINATORS { "*EFILPQX" };
+
+struct Header {
 
 private:
-    std::string data;
+    inline void remove_record_delimiter() {
+        if (this->name[0] == '>') {
+            // BUG: if the header is just > without a name?
+            this->name = this->name.substr(1);
+        }
+    }
 
-    inline Header split(const std::string& name) {
-
+    inline void split(const std::string& name) {
         std::size_t space_pos = name.find(' ');
 
         if (space_pos == std::string::npos) {
-            return std::make_pair(name, "");
+            this->name = name;
+            this->desc = "";
+        }
+        else {
+            this->name = name.substr(0, space_pos);
+            this->desc = name.substr(space_pos + 1);
         }
 
-        return std::make_pair(name.substr(0, space_pos), name.substr(space_pos + 1));
+        this->remove_record_delimiter();
     }
 
+public:
+    std::string name;
+    std::string desc;
 
+    // default constructor
+    Header() : name(""), desc("") {}
+
+    // copy constructor
+    Header(const std::string& name, const std::string& desc) : name(name), desc(desc) {}
+
+    // copy constructor to split name into fields
+    Header(const std::string& name) { this->split(name); }
+
+    // move constructor
+    Header(std::string&& name, std::string&& desc) : name(std::move(name)), desc(std::move(desc)) {}
+
+    // move constructor to split name into fields
+    Header(std::string&& name) { this->split(std::move(name)); }
+
+    bool operator==(const Header& other) const {
+        return this->name == other.name && this->desc == other.desc;
+    }
+
+    bool operator!=(const Header& other) const {
+        return !(*this == other);
+    }
+
+    inline void clean() { this->desc = ""; }
+
+    inline bool empty() { return this->name.empty() && this->desc.empty(); }
+
+    inline void clear() {
+        this->name.clear();
+        this->desc.clear();
+    }
+
+    // Return header as a string WITHOUT the > prefix
+    inline std::string to_string() const {
+        std::string str = this->name;
+
+        if (!this->desc.empty()) {
+            str += ' ';
+            str += this->desc;
+        }
+
+        return str;
+    }
+
+    // return the total number of header characters
+    inline size_t size() const { return this->name.size() + this->desc.size(); }
+    
+};
+
+
+struct Record {
+private:
     inline void read(std::istream& is, std::string& bufline) {
         if (bufline.empty()) {
             std::getline(is, bufline);
@@ -38,7 +112,7 @@ private:
             return;
         }
 
-        Header header = this->split(bufline);
+        this->header = Header{std::move(bufline)};
 
         while (std::getline(is, bufline)) {
             if (bufline.empty()) {
@@ -52,69 +126,92 @@ private:
 
             this->seq += bufline;
         }
+    }
 
-        // remove > symbol from beginning of name
-        // BUG: if the header is just > without a name?
-        this->name = std::move(header.first.substr(1));
-        this->desc = std::move(header.second);
+    inline void detect_format() {
+        for (char c : AMINO_ACID_DISCRIMINATORS) {
+            // must be a protein
+            if (this->seq.find(c) != std::string::npos) {
+                this->type = RecordType::PROTEIN;
+                return;
+            }
+        }
+
+        // otherwise nucleotide seq, so it could be a gene or genome
+        if (this->seq.size() >= MINGENOMELEN) {
+            this->type = RecordType::GENOME;
+        }
+        else {
+            this->type = RecordType::GENE;
+        }
     }
 
 public:
-    std::string name;
-    std::string desc;
+    Header header;
     std::string seq;
+    RecordType type;
 
     // default constructor
-    Record() : name(""), desc(""), seq("") {}
+    Record() : header(), seq(""), type(DEFAULT_TYPE) {}
 
     // copy constructor
-    Record(const Record& other) : name(other.name), desc(other.desc), seq(other.seq) {}
+    Record(const Record& other) : 
+        header(other.header), seq(other.seq), type(other.type) {}
 
     // copy constructor with all 3 fields precomputed
-    Record(const std::string& name, const std::string& desc, const std::string& seq) : name(name), desc(desc), seq(seq) {}
+    Record(const std::string& name, const std::string& desc, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
+        header(name, desc), seq(seq), type(type) {}
 
     // copy constructor that will split `name` at the first space into an actual name and description
-    Record(const std::string& name, const std::string& seq) {
-        std::pair<std::string, std::string> split_name = split(name);
-        this->name = split_name.first;
-        this->desc = split_name.second;
-        this->seq = seq;
-    }
+    Record(const std::string& name, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
+        header(name), seq(seq), type(type) {}
+
+    Record(const Header& header, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
+        header(header), seq(seq), type(type) {}
 
     // move constructor with all 3 fields precomputed
-    Record(std::string&& name, std::string&& desc, std::string&& seq) : name(std::move(name)), desc(std::move(desc)), seq(std::move(seq)) {}
+    Record(std::string&& name, std::string&& desc, std::string&& seq, const RecordType& type = DEFAULT_TYPE) : 
+        header(std::move(name), std::move(desc)), seq(std::move(seq)), type(type) {}
 
     // move constructor that will split `name` at the first space into an actual name and description
-    Record(std::string&& name, std::string&& seq) {
-        std::string local_name = std::move(name);
-        std::pair<std::string, std::string> split_name = split(local_name);
-        this->name = std::move(split_name.first);
-        this->desc = std::move(split_name.second);
-        this->seq = std::move(seq);
-    }
+    Record(std::string&& name, std::string&& seq, const RecordType& type = DEFAULT_TYPE) : 
+        header(std::move(name)), seq(std::move(seq)), type(type) {}
 
     // constructor that reads from a stream
     Record(std::istream& is, std::string& bufline) {
         this->read(is, bufline);
     }
+    
+    // PUBLIC METHODS
 
     inline bool empty() {
-        return this->name.empty() && this->desc.empty() && this->seq.empty();
+        return this->header.empty() && this->seq.empty();
     }
 
     inline void clear() {
-        this->name.clear();
-        this->desc.clear();
+        this->header.clear();
         this->seq.clear();
     }
 
+    inline void clean_header() { this->header.clean(); }
+
+    inline void remove_stops() {
+        if (this->type == RecordType::PROTEIN) {
+            this->seq.erase(std::remove(this->seq.begin(), this->seq.end(), '*'), this->seq.end());
+        }
+    }
+
     std::string to_string() const {
-        std::string str_record;
-        size_t num_seq_lines = this->seq.size() / SEQLINESIZE + 1;
+        std::string str_record = ">";
 
-        str_record.reserve(this->seq.size() + MAXHEADERLEN + num_seq_lines);
+        // account for the number of newlines needed for the sequence
+        // +2 to round up AND account for newline between header and seq
+        size_t num_seq_lines = this->seq.size() / SEQLINESIZE + 2;
 
-        str_record += this->header();
+        // preallocate the string buffer, +1 is for >
+        str_record.reserve(this->seq.size() + this->header.size() + num_seq_lines + 1);
+
+        str_record += this->header.to_string();
         str_record += '\n';
 
         for (size_t i = 0; i < this->seq.size(); i += SEQLINESIZE) {
@@ -125,25 +222,13 @@ public:
         return str_record;
     }
 
-    std::string header() const {
-        std::string str;
-        str.reserve(this->name.size() + this->desc.size() + 10);
-        str += this->name;
-
-        if (!this->desc.empty()) {
-            str += ' ';
-            str += this->desc;
-        }
-
-        return str;
-    }
-
     friend std::ostream& operator<<(std::ostream& os, const Record& record) {
         return os << record.to_string();
     }
 
     bool operator==(const Record& other) const {
-        return this->name == other.name && this->desc == other.desc && this->seq == other.seq;
+        // don't need to check type since it's derived from the sequence
+        return this->header == other.header && this->seq == other.seq;
     }
 
     bool operator!=(const Record& other) const {
@@ -153,6 +238,7 @@ public:
 };
 
 using Records = std::vector<Record>;
+using Headers = std::vector<Header>;
 
 class Parser {
 private:
@@ -176,8 +262,18 @@ private:
         }
     }
 
+    void detect_format(const std::string& filename);
+
 public:
+    RecordType type;
+
     Parser(const std::string& filename) {
+        this->setup_file(filename);
+        this->detect_format(filename);
+    }
+
+
+    Parser(const std::string& filename, const RecordType& type) : type(type) {
         this->setup_file(filename);
     }
 
@@ -193,14 +289,20 @@ public:
         return !(this->eof());
     };
 
+    std::string& get_line() {
+        return this->line;
+    }
+
     Record next();
     Record py_next();
     Records all();
     Records take(size_t n);
     void refresh();
-    void fill();
-
-    // need a header parser -> should be easy since can just use a find_if type of thing
+    size_t count();
+    std::string extension();
+    Header next_header();
+    Header py_next_header();
+    Headers headers();
 };
 
 #endif
