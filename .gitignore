@@ -4,7 +4,6 @@ dist/
 .vscode/
 .env
 *.ipynb
-test*
 build/
 CMakeFiles/
 CMakeCache.txt
