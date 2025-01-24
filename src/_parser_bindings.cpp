@@ -57,8 +57,18 @@ NB_MODULE(extname, m) {
         ;
 
     nb::class_<Record>(m, "Record")
+        // name, desc, seq
         .def(nb::init<const std::string&, const std::string&, const std::string&>())
+        // header str, seq
         .def(nb::init<const std::string&, const std::string&>())
+        // header str, seq, type
+        .def(nb::init<const std::string&, const std::string&, const RecordType&>())
+        // name, desc, seq, type
+        .def(nb::init<const std::string&, const std::string&, const std::string&, const RecordType&>())
+        // header, seq, type
+        .def(nb::init<const Header&, const std::string&, const RecordType&>())
+        // header, seq
+        .def(nb::init<const Header&, const std::string&>())
         .def(nb::self == nb::self)
         .def(nb::self != nb::self)
         .def("empty", &Record::empty)
@@ -85,6 +95,7 @@ NB_MODULE(extname, m) {
 
     nb::class_<Parser>(m, "Parser")
         .def(nb::init<const std::string&>())
+        .def(nb::init<const std::string&, const RecordType&>())
         .def("has_next", &Parser::has_next)
         .def("all", &Parser::all)
         .def("take", &Parser::take)
