@@ -5,7 +5,7 @@ build-backend = "scikit_build_core.build"
 [project]
 
 name = "pyfastatools"
-version = "2.2.1"
+version = "2.3.0"
 authors = [{ name = "Cody Martin", email = "codycmar10@gmail.com" }]
 description = "Simple FASTA file tools to parse, edit, subset, split, and perform stats on FASTA files"
 readme = "README.md"
@@ -19,7 +19,10 @@ classifiers = [
 ]
 dependencies = ["more-itertools >= 8.2"]
 
-# [project.optional-dependencies]
+[project.optional-dependencies]
+test = ["pytest>=8.3", "pytest-cov"]
+build = ["ruff", "mypy", "isort", "covdefaults"]
+dev = ["pyfastatools[build]", "pyfastatools[test]"]
 # "cli" = []
 
 # [project.scripts]
@@ -43,3 +46,9 @@ plugins = ["covdefaults"]
 minimum-version = "0.4"
 build-dir = "build/{wheel_tag}"
 wheel.py-api = "cp312"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
