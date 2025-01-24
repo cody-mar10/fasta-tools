@@ -14,7 +14,7 @@ class Parser:
     def __init__(self, file: FilePath):
 
         self.file = file
-        if isinstance(file, Path):
+        if isinstance(file, Path):  # pragma: no cover
             # C++ parser expects a string, not a Path object
             file = file.as_posix()
 
@@ -148,7 +148,7 @@ class Parser:
         if exclude is not None:
             return self._remove(exclude, unique_headers)
 
-        raise RuntimeError("UNREACHABLE")
+        raise RuntimeError("UNREACHABLE")  # pragma: no cover
 
     def first(self) -> Record:
         """Get the first record in the file."""
@@ -157,9 +157,18 @@ class Parser:
 
     def last(self) -> Record:
         """Get the last record in the file."""
+
+        # reset if at EOF, otherwise we don't need to refresh
+        # initially to get the last record quicker
+        if not self._parser.has_next():  # pragma: no cover <- this is tested
+            self.refresh()
+
         for record in self:
             pass
+
         self.refresh()
+
+        # this works without an UnboundLocalError since empty files will raise TypeErrors
         return record
 
     ### EDIT METHODS ###
