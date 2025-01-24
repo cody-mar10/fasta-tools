@@ -160,26 +160,50 @@ public:
 
     // copy constructor with all 3 fields precomputed
     Record(const std::string& name, const std::string& desc, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
-        header(name, desc), seq(seq), type(type) {}
+        header(name, desc), seq(seq), type(type) {
+            if (this->type == DEFAULT_TYPE) {
+                this->detect_format();
+            }
+        }
 
     // copy constructor that will split `name` at the first space into an actual name and description
     Record(const std::string& name, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
-        header(name), seq(seq), type(type) {}
+        header(name), seq(seq), type(type) {
+            if (this->type == DEFAULT_TYPE) {
+                this->detect_format();
+            }
+        }
 
     Record(const Header& header, const std::string& seq, const RecordType& type = DEFAULT_TYPE) : 
-        header(header), seq(seq), type(type) {}
+        header(header), seq(seq), type(type) {
+            if (this->type == DEFAULT_TYPE) {
+                this->detect_format();
+            }
+        }
 
     // move constructor with all 3 fields precomputed
     Record(std::string&& name, std::string&& desc, std::string&& seq, const RecordType& type = DEFAULT_TYPE) : 
-        header(std::move(name), std::move(desc)), seq(std::move(seq)), type(type) {}
+        header(std::move(name), std::move(desc)), seq(std::move(seq)), type(type) {
+            if (this->type == DEFAULT_TYPE) {
+                this->detect_format();
+            }
+        }
 
     // move constructor that will split `name` at the first space into an actual name and description
     Record(std::string&& name, std::string&& seq, const RecordType& type = DEFAULT_TYPE) : 
-        header(std::move(name)), seq(std::move(seq)), type(type) {}
+        header(std::move(name)), seq(std::move(seq)), type(type) {
+            if (this->type == DEFAULT_TYPE) {
+                this->detect_format();
+            }
+        }
 
     // constructor that reads from a stream
-    Record(std::istream& is, std::string& bufline) {
+    Record(std::istream& is, std::string& bufline, const RecordType& type = DEFAULT_TYPE) : type(DEFAULT_TYPE) {
         this->read(is, bufline);
+
+        if (this->type == DEFAULT_TYPE) {
+            this->detect_format();
+        }
     }
     
     // PUBLIC METHODS
@@ -267,14 +291,12 @@ private:
 public:
     RecordType type;
 
-    Parser(const std::string& filename) {
+    Parser(const std::string& filename, const RecordType& type = DEFAULT_TYPE) : type(type) {
         this->setup_file(filename);
-        this->detect_format(filename);
-    }
 
-
-    Parser(const std::string& filename, const RecordType& type) : type(type) {
-        this->setup_file(filename);
+        if (this->type == DEFAULT_TYPE) {
+            this->detect_format(filename);
+        }
     }
 
     ~Parser() {
