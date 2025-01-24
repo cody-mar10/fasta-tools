@@ -13,7 +13,7 @@
 Return the next FASTA record
 */
 Record Parser::next() {
-    return Record(this->file, this->line);
+    return Record(this->file, this->line, this->type);
 }
 
 /*
@@ -68,17 +68,25 @@ std::string Parser::extension() {
             return ".ffn";
         case RecordType::PROTEIN:
             return ".faa";
+        case RecordType::NUCLEOTIDE:
+        case RecordType::UNKNOWN:
         default:
+            // fall through
             return ".fasta";
+        
     }
 }
 
 /*
 Return the next header in the file.
 */
-// TODO: some kind of bug that only returns the first header over and over
-// also propagates into counting number of seqs...
 Header Parser::next_header() {
+    // need to check if we actually found a header
+    // the while loop will stop at EOF
+    // for files without a newline at the end will have the last line
+    // set to the final sequence line
+    bool found_header = false;
+
     // advance to the next header
     if ((this->line.empty()) || (this->line[0] != '>')) {
         while (std::getline(this->file, this->line)) {
@@ -87,11 +95,18 @@ Header Parser::next_header() {
             }
 
             if (this->line[0] == '>') {
+                found_header = true;
                 break;
             }
         }
+    } else if (this->line[0] == '>') {
+        found_header = true;
     }
 
+    if (!found_header) {
+        return Header();
+    }
+    
     // for some reason the move doesn't clear the line...
     Header header(std::move(this->line));
     this->line.clear();
@@ -148,7 +163,6 @@ void Parser::detect_format(const std::string& filename) {
     fs::path path(filename);
     std::string ext = path.extension().string();
     if (!(ext.empty())) {
-        
         // could be zipped, check 2nd char since 1st is a .
         if (ext[1] != 'f') {
             ext = path.stem().extension().string();
@@ -184,16 +198,16 @@ void Parser::detect_format(const std::string& filename) {
         However, if there is a protein sequence, we will default to that.
         */
 
-        switch (record.type) {
+        switch(record.type) {
+            case RecordType::PROTEIN:
+                this->type = RecordType::PROTEIN;
+                return;
             case RecordType::GENOME:
                 genome_count++;
                 break;
             case RecordType::GENE:
                 gene_count++;
                 break;
-            case RecordType::PROTEIN:
-                this->type = RecordType::PROTEIN;
-                return;
             default:
                 break;
         }
