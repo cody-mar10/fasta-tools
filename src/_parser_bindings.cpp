@@ -42,6 +42,23 @@ Header Parser::py_next_header() {
     return header;
 }
 
+/*
+Python wrapper for `next_prodigal_header()` that raises a Python `StopIteration` exception when the end of the file is reached.
+*/
+ProdigalHeader Parser::py_next_prodigal_header() {
+    if (this->file.eof()) {
+        throw nb::stop_iteration();
+    }
+
+    ProdigalHeader header = this->next_prodigal_header();
+
+    if (header.empty()) {
+        throw nb::stop_iteration();
+    }
+
+    return header;
+}
+
 NB_MODULE(extname, m) {
     nb::class_<Header>(m, "Header")
         .def(nb::init<const std::string&, const std::string&>())
@@ -52,8 +69,26 @@ NB_MODULE(extname, m) {
         .def("clear", &Header::clear)
         .def("clean", &Header::clean)
         .def("to_string", &Header::to_string)
+        .def("size", &Header::size)
+        .def("is_prodigal", &Header::is_prodigal)
+        .def("to_prodigal", &Header::to_prodigal)
         .def_rw("name", &Header::name)
         .def_rw("desc", &Header::desc)
+        ;
+
+    nb::class_<ProdigalHeader>(m, "ProdigalHeader")
+        .def(nb::init<const std::string&, u_int32_t, u_int32_t, const Strand&, const std::string&>())
+        .def(nb::init<const std::string&>())
+        // .def(nb::init<const Header&>())
+        .def(nb::self == nb::self)
+        .def(nb::self != nb::self)
+        .def("empty", &ProdigalHeader::empty)
+        .def("to_string", &ProdigalHeader::to_string)
+        .def_rw("name", &ProdigalHeader::name)
+        .def_rw("start", &ProdigalHeader::start)
+        .def_rw("end", &ProdigalHeader::end)
+        .def_rw("strand", &ProdigalHeader::strand)
+        .def_rw("metadata", &ProdigalHeader::metadata)
         ;
 
     nb::class_<Record>(m, "Record")
@@ -76,6 +111,7 @@ NB_MODULE(extname, m) {
         .def("clean_header", &Record::clean_header)
         .def("remove_stops", &Record::remove_stops)
         .def("to_string", &Record::to_string)
+        .def("is_prodigal", &Record::is_prodigal)
         .def_rw("header", &Record::header)
         .def_rw("seq", &Record::seq)
         .def_rw("type", &Record::type)
@@ -83,6 +119,7 @@ NB_MODULE(extname, m) {
 
     nb::bind_vector<Records>(m, "Records");
     nb::bind_vector<Headers>(m, "Headers");
+    nb::bind_vector<ProdigalHeaders>(m, "ProdigalHeaders");
 
     nb::enum_<RecordType>(m, "RecordType")
         .value("GENOME", RecordType::GENOME)
@@ -90,6 +127,12 @@ NB_MODULE(extname, m) {
         .value("PROTEIN", RecordType::PROTEIN)
         .value("NUCLEOTIDE", RecordType::NUCLEOTIDE)
         .value("UNKNOWN", RecordType::UNKNOWN)
+        .export_values()
+        ;
+
+    nb::enum_<Strand>(m, "Strand")
+        .value("POSITIVE", Strand::POSITIVE)
+        .value("NEGATIVE", Strand::NEGATIVE)
         .export_values()
         ;
 
@@ -107,6 +150,10 @@ NB_MODULE(extname, m) {
         .def("next_header", &Parser::next_header)
         .def("py_next_header", &Parser::py_next_header)
         .def("headers", &Parser::headers)
+        .def("prodigal_headers", &Parser::prodigal_headers)
+        .def("next_prodigal_header", &Parser::next_prodigal_header)
+        .def("py_next_prodigal_header", &Parser::py_next_prodigal_header)
         .def_rw("type", &Parser::type)
+        .def_rw("is_prodigal", &Parser::is_prodigal)
         ;
 }

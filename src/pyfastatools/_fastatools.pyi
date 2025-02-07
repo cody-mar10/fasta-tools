@@ -31,6 +31,41 @@ class Header:
     def clear(self) -> None:
         """Sets the name and desc to empty strings."""
 
+    def size(self) -> int:
+        """Get the size of the header by adding the lengths of the name and desc."""
+
+    def is_prodigal(self) -> bool:
+        """Check if the header is prodigal formatted."""
+
+    def to_prodigal(self) -> "ProdigalHeader":
+        """Convert the header to a `ProdigalHeader` object."""
+
+class Strand(Enum):
+    """An enumeration of the different strands in a DNA sequence."""
+
+    POSITIVE = 1
+    NEGATIVE = -1
+
+class ProdigalHeader:
+    """A struct to store prodigal fields of a FASTA record."""
+
+    name: str
+    start: int
+    end: int
+    strand: Strand
+    metadata: str
+
+    def __init__(self, header: str) -> None: ...
+    def __eq__(self, other: ProdigalHeader) -> bool: ...
+    def __ne__(self, other: ProdigalHeader) -> bool: ...
+    def empty(self) -> bool:
+        """Check if the header is empty, ie name is an empty string."""
+
+    def to_string(self) -> str:
+        """Return the header as a string by concatenating name, start, end, strand, and metadata
+        with a space. This will be identical to the original header string without the '>'
+        """
+
 class Record:
     """A struct to store a FASTA record, including a `Header` and a sequence.
 
@@ -70,6 +105,10 @@ class Record:
         """Remove the '*' stop codon from a protein sequence. For nucleotide sequences, this method
         does nothing."""
 
+    def is_prodigal(self) -> bool:
+        """Check if the record is a prodigal record by checking if the header is prodigal formatted
+        AND if the sequence is a protein sequence."""
+
 class Records(List[Record]):
     """A C++ `std::vector<Record>` object that is Python bound. It has the expected list methods such
     as append, extend, pop, etc. However, it enforces that only `Record` objects can be added to the
@@ -80,10 +119,16 @@ class Headers(List[Header]):
     as append, extend, pop, etc. However, it enforces that only `Header` objects can be added to the
     list"""
 
+class ProdigalHeaders(List[ProdigalHeader]):
+    """A C++ `std::vector<ProdigalHeader>` object that is Python bound. It has the expected list
+    methods such as append, extend, pop, etc. However, it enforces that only `ProdigalHeader` objects
+    can be added to the list"""
+
 class Parser:
     """A FASTA parser"""
 
     type: RecordType
+    is_prodigal: bool
 
     def __init__(
         self, filename: str, type: RecordType = RecordType.UNKNOWN
@@ -137,4 +182,29 @@ class Parser:
 
         Returns:
             `Headers`: A list-like object storing all headers in the file.
+        """
+
+    def prodigal_headers(self) -> ProdigalHeaders:
+        """Get all prodigal headers in the file.
+
+        Returns:
+            `ProdigalHeaders`: A list-like object storing all prodigal headers in the file.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+        """
+
+    def next_prodigal_header(self) -> ProdigalHeader:
+        """Get the next prodigal header in the file.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+        """
+
+    def py_next_prodigal_header(self) -> ProdigalHeader:
+        """Get the next prodigal header in the file.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+            StopIteration: If there are no more headers.
         """

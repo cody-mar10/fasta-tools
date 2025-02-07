@@ -1,22 +1,36 @@
 from functools import cached_property
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Iterator, Literal, Optional
 
-from pyfastatools._fastatools import Header, Headers, Record, Records, RecordType
+from pyfastatools._fastatools import (
+    Header,
+    Headers,
+    ProdigalHeader,
+    ProdigalHeaders,
+    Record,
+    Records,
+    RecordType,
+)
 from pyfastatools._fastatools import Parser as _Parser
 from pyfastatools._types import FilePath
+from pyfastatools.utils import write_fasta
 
 RecordIterator = Iterator[Record]
 HeaderIterator = Iterator[Header]
+ProdigalHeaderIterator = Iterator[ProdigalHeader]
 
 
 class Parser:
-    def __init__(self, file: FilePath):
+    file: Path
 
-        self.file = file
-        if isinstance(file, Path):  # pragma: no cover
+    def __init__(self, file: FilePath):
+        if isinstance(file, Path):
+            self.file = file
+
             # C++ parser expects a string, not a Path object
             file = file.as_posix()
+        else:
+            self.file = Path(file)
 
         self._parser = _Parser(file)
 
@@ -38,8 +52,16 @@ class Parser:
 
     @property
     def extension(self) -> str:
-        """Get the file extension based on the record type."""
+        """Get the file extension based on the record type.
+
+        Note: This includes the . in the extension.
+        """
         return self._parser.extension()
+
+    @property
+    def is_prodigal(self) -> bool:
+        """Check if the file is a Prodigal-formatted protein FASTA file."""
+        return self._parser.is_prodigal
 
     def __len__(self) -> int:
         """Get the number of records in the file."""
@@ -85,6 +107,36 @@ class Parser:
     def all_headers(self) -> Headers:
         """Get all headers in the file as a list-like object."""
         return self._parser.headers()
+
+    def next_prodigal_header(self) -> ProdigalHeader:
+        """Get the next prodigal header in the file.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+        """
+        return self._parser.next_prodigal_header()
+
+    def prodigal_headers(self) -> ProdigalHeaderIterator:
+        """Iterate over all prodigal headers in the file.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+            StopIteration: If there are no more headers.
+        """
+        self.refresh()
+        while True:
+            try:
+                yield self._parser.py_next_prodigal_header()
+            except StopIteration:
+                break
+
+    def all_prodigal_headers(self) -> ProdigalHeaders:
+        """Get all prodigal headers in the file as a list-like object.
+
+        Raises:
+            RuntimeError: If the file is not prodigal formatted.
+        """
+        return self._parser.prodigal_headers()
 
     ### SUBSET METHODS ###
 
@@ -196,12 +248,114 @@ class Parser:
             record.remove_stops()
             yield record
 
+    ### SPLIT METHODS ###
+    def _split_by_genome(self, outdir: Path):
+        if self.format not in {RecordType.GENE, RecordType.PROTEIN}:
+            raise ValueError(
+                "Cannot split by genome for this file format. Must be a gene or protein file."
+            )
+
+        # check first record for header format
+        header = self.first().header.name
+        fields = header.rsplit("_", 1)
+        if len(fields) == 1:
+            raise ValueError(
+                f"ORF headers must be in this format: <genome>_<ORF number>. Found: {header}"
+            )
+
+        self.refresh()
+        ext = self.extension
+        for record in self:
+            header = record.header.name
+            genome = header.rsplit("_", 1)[0]
+            outpath = outdir / f"{genome}{ext}"
+            with open(outpath, "a") as fdst:
+                write_fasta(record, fdst)
+
+    def _write_n_seqs_to_file(self, outpath: Path, n: int):
+        records = self.take(n)
+        with open(outpath, "w") as fdst:
+            for record in records:
+                write_fasta(record, fdst)
+
+    def _split_into_n_files(self, outdir: Path, n: int):
+        """Writes sequences in order to n files."""
+        ext = self.extension
+        base_name = self.file.stem
+
+        num_records = self.num_records
+        even_seqs_per_file, rem = divmod(num_records, n)
+        num_per_file = [even_seqs_per_file] * n
+
+        # distribute the remainder
+        for i in range(rem):
+            num_per_file[i] += 1
+
+        for file_idx, num_seqs in enumerate(num_per_file):
+            outpath = outdir / f"{base_name}_{file_idx}{ext}"
+            self._write_n_seqs_to_file(outpath, num_seqs)
+
+    def _split_n_seqs_per_file(self, outdir: Path, n: int):
+        """Writes n sequences to each file in order."""
+        ext = self.extension
+        base_name = self.file.stem
+
+        num_records = self.num_records
+        num_files, rem = divmod(num_records, n)
+        if rem:
+            # write remaining records to a new file so that each file has no more than n records
+            num_files += 1
+
+        for file_idx in range(num_files):
+            outpath = outdir / f"{base_name}_{file_idx}{ext}"
+            self._write_n_seqs_to_file(outpath, n)
+
+    def split(
+        self,
+        outdir: FilePath,
+        method: Literal["genome", "n_files", "n_seqs_per_file"],
+        n: Optional[int] = None,
+    ):
+        """Split the file into multiple files.
+
+        Args:
+            outdir (FilePath): The directory to write the split files to.
+            method (Literal["genome", "n_files", "n_seqs_per_file"]): The method to use for
+                splitting the file.
+            n (Optional[int], optional): The number of files or sequences per file. Defaults to
+                None. This will raise a ValueError if not provided for the "n_files" and
+                "n_seqs_per_file" methods.
+
+        Raises:
+            ValueError: If the method is not recognized or if n is not provided when required.
+        """
+        if not isinstance(outdir, Path):
+            outdir = Path(outdir)
+
+        outdir.mkdir(exist_ok=True, parents=True)
+
+        if method == "genome":
+            self._split_by_genome(outdir)
+            return
+
+        if n is None:
+            raise ValueError(
+                "n must be provided for the 'n_files' and 'n_seqs_per_file' methods."
+            )
+
+        if method == "n_files":
+            self._split_into_n_files(outdir, n)
+            return
+
+        if method == "n_seqs_per_file":
+            self._split_n_seqs_per_file(outdir, n)
+            return
+
+        raise ValueError(f"Unrecognized method: {method}")
+
+    # TODO: need to figure out a way to write from python with C++
+
     # TODO: for subsetting
     # add method to read subset file...?
     # actually can just have that be defined elsewhere
     # - rename method?
-
-    # TODO: add split methods
-    # - into n files
-    # - into n seqs per file
-    # - split by genome

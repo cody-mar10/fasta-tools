@@ -6,6 +6,7 @@
 #include <vector>
 #include <iterator>
 #include <filesystem>
+#include <algorithm>
 
 // Parser public methods
 
@@ -153,6 +154,44 @@ size_t Parser::count() {
     return n;
 }
 
+/*
+Return the next Prodigal header in the file.
+Raises an exception if the file is not Prodigal-formatted.
+*/
+ProdigalHeader Parser::next_prodigal_header() {
+    if (!this->is_prodigal) {
+        throw std::runtime_error("File is not a Prodigal-formatted protein FASTA file");
+    }
+
+    Header header = this->next_header();
+    if (header.empty()) {
+        return ProdigalHeader();
+    }
+
+    return header.to_prodigal();
+}
+
+/*
+Return all Prodigal headers in the file.
+Raises an exception if the file is not Prodigal-formatted.
+*/
+ProdigalHeaders Parser::prodigal_headers() {
+    // let inner fn throw error
+    this->refresh();
+
+    ProdigalHeaders headers;
+
+    while (this->has_next()) {
+        ProdigalHeader header = this->next_prodigal_header();
+        if (header.empty()) {
+            break;
+        }
+        headers.push_back(header);
+    }
+
+    return headers;
+}
+
 // Parser private methods
 
 void Parser::detect_format(const std::string& filename) {
@@ -170,14 +209,17 @@ void Parser::detect_format(const std::string& filename) {
 
         if (ext == ".fna") {
             this->type = RecordType::GENOME;
+            this->is_prodigal = false;
             return;
         }
         else if (ext == ".ffn") {
             this->type = RecordType::GENE;
+            this->is_prodigal = false; //TODO: WELL this could be true I think
             return;
         }
         else if (ext == ".faa") {
             this->type = RecordType::PROTEIN;
+            this->check_if_prodigal();
             return;
         }
     }
@@ -201,6 +243,8 @@ void Parser::detect_format(const std::string& filename) {
         switch(record.type) {
             case RecordType::PROTEIN:
                 this->type = RecordType::PROTEIN;
+                this->is_prodigal = record.is_prodigal();
+                this->refresh();
                 return;
             case RecordType::GENOME:
                 genome_count++;
@@ -224,5 +268,16 @@ void Parser::detect_format(const std::string& filename) {
         this->type = RecordType::NUCLEOTIDE;
     }
 
+    this->refresh();
+}
+
+void Parser::check_if_prodigal() {
+    if (this->type != RecordType::PROTEIN) {
+        this->is_prodigal = false;
+        return;
+    }
+
+    Record record = this->next();
+    this->is_prodigal = record.is_prodigal();
     this->refresh();
 }
