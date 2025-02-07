@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
 
 #define SEQLINESIZE 75
 #define MINGENOMELEN 5000
