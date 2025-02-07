@@ -72,6 +72,6 @@ def write_fasta(record: Record, fobj: TextIO, width: int = 75):
         width (int, optional): The width of the sequence line. Defaults to 75.
     """
 
-    fobj.write(f">{record.name} {record.desc}\n")
+    fobj.write(f">{record.header.name} {record.header.desc}\n")
     for line in wrap(record.seq, width=width):
         fobj.write(f"{line}\n")
