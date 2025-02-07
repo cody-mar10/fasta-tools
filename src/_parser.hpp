@@ -6,6 +6,7 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
 
 #define SEQLINESIZE 75
 #define MINGENOMELEN 5000
@@ -54,7 +55,11 @@ struct ProdigalHeader {
     void init(const std::string& header) {
         Fields fields = this->split(header, " # ");
 
-        this->name = fields[0];
+        // split name into scaffold and ptn number
+        size_t pos = fields[0].rfind('_');
+
+        this->scaffold = fields[0].substr(0, pos);
+        this->id = std::stoi(fields[0].substr(pos + 1));
         this->start = std::stoi(fields[1]);
         this->end = std::stoi(fields[2]);
         this->strand = fields[3] == "1" ? Strand::POSITIVE : Strand::NEGATIVE;
@@ -62,16 +67,24 @@ struct ProdigalHeader {
     }
 
 public:
-    std::string name;
+    std::string scaffold;
+    u_int32_t id;
     u_int32_t start;
     u_int32_t end;
     Strand strand;
     std::string metadata; // TODO: could also parse this later
 
-    ProdigalHeader() : ProdigalHeader("", 0, 0, Strand::POSITIVE, "") {}
+    ProdigalHeader() : ProdigalHeader("", 0, 0, 0, Strand::POSITIVE, "") {}
 
-    ProdigalHeader(const std::string& name, u_int32_t start, u_int32_t end, Strand strand, const std::string& metadata) : 
-        name(name), start(start), end(end), strand(strand), metadata(metadata) {}
+    ProdigalHeader(
+        const std::string& scaffold, 
+        const u_int32_t id, 
+        u_int32_t start, 
+        u_int32_t end, 
+        Strand strand, 
+        const std::string& metadata
+    ) : 
+        scaffold(scaffold), id(id), start(start), end(end), strand(strand), metadata(metadata) {}
 
     ProdigalHeader(const std::string& header) {
         this->init(header);
@@ -86,18 +99,18 @@ public:
     // }
 
     ProdigalHeader(const ProdigalHeader& other) : 
-        name(other.name), start(other.start), end(other.end), strand(other.strand), metadata(other.metadata) {}
+        scaffold(other.scaffold), id(other.id), start(other.start), end(other.end), strand(other.strand), metadata(other.metadata) {}
 
     // ProdigalHeader(const ProdigalHeader&& other) : 
     //     name(std::move(other.name)), start(other.start), end(other.end), strand(other.strand), metadata(std::move(other.metadata)) {}
 
     inline bool empty() const { 
-        return this->name.empty() && this->start == 0 && this->end == 0 && this->metadata.empty();
+        return this->scaffold.empty() && this->id == 0 && this->start == 0 && this->end == 0 && this->metadata.empty();
     }
 
     bool operator==(const ProdigalHeader other) const {
         // don't need to check type since it's derived from the sequence
-        return this->name == other.name && this->start == other.start && this->end == other.end && this->strand == other.strand;
+        return this->scaffold == other.scaffold && this->id == other.id && this->start == other.start && this->end == other.end && this->strand == other.strand;
     }
 
     bool operator!=(const ProdigalHeader& other) const {
@@ -105,7 +118,7 @@ public:
     }
 
     std::string to_string() const {
-        std::string str = this->name;
+        std::string str = this->name();
         str += " # ";
         str += std::to_string(this->start);
         str += " # ";
@@ -115,6 +128,10 @@ public:
         str += " # ";
         str += this->metadata;
         return str;
+    }
+
+    inline std::string name() const {
+        return this->scaffold + "_" + std::to_string(this->id);
     }
     
 };

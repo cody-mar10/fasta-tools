@@ -49,7 +49,8 @@ class Strand(Enum):
 class ProdigalHeader:
     """A struct to store prodigal fields of a FASTA record."""
 
-    name: str
+    scaffold: str
+    id: int
     start: int
     end: int
     strand: Strand
@@ -65,6 +66,9 @@ class ProdigalHeader:
         """Return the header as a string by concatenating name, start, end, strand, and metadata
         with a space. This will be identical to the original header string without the '>'
         """
+
+    def name(self) -> str:
+        """Get the name of the record from the header by concatenating scaffold and id with a '_'"""
 
 class Record:
     """A struct to store a FASTA record, including a `Header` and a sequence.
