@@ -6,10 +6,11 @@
 #include <vector>
 #include <iostream>
 #include <algorithm>
-#include <cstdint>
 
 #define SEQLINESIZE 75
 #define MINGENOMELEN 5000
+
+using u_int32_t = unsigned int;
 
 enum RecordType {
     GENOME,
@@ -29,7 +30,6 @@ enum Strand {
 
 struct ProdigalHeader {
     using Fields = std::vector<std::string>;
-    using u_int32_t = unsigned int;
 
     Fields split(const std::string& s, const std::string& delimiter) {
         Fields fields;
