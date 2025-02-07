@@ -10,7 +10,6 @@
 #define SEQLINESIZE 75
 #define MINGENOMELEN 5000
 
-using u_int32_t = unsigned int;
 
 enum RecordType {
     GENOME,
@@ -69,9 +68,9 @@ struct ProdigalHeader {
 
 public:
     std::string scaffold;
-    u_int32_t id;
-    u_int32_t start;
-    u_int32_t end;
+    uint32_t id;
+    uint32_t start;
+    uint32_t end;
     Strand strand;
     std::string metadata; // TODO: could also parse this later
 
@@ -79,9 +78,9 @@ public:
 
     ProdigalHeader(
         const std::string& scaffold, 
-        const u_int32_t id, 
-        u_int32_t start, 
-        u_int32_t end, 
+        const uint32_t id, 
+        uint32_t start, 
+        uint32_t end, 
         Strand strand, 
         const std::string& metadata
     ) : 

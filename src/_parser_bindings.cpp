@@ -77,7 +77,7 @@ NB_MODULE(extname, m) {
         ;
 
     nb::class_<ProdigalHeader>(m, "ProdigalHeader")
-        .def(nb::init<const std::string&, u_int32_t, u_int32_t, u_int32_t, const Strand&, const std::string&>())
+        .def(nb::init<const std::string&, uint32_t, uint32_t, uint32_t, const Strand&, const std::string&>())
         .def(nb::init<const std::string&>())
         // .def(nb::init<const Header&>())
         .def(nb::self == nb::self)
