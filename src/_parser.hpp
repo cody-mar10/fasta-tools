@@ -29,6 +29,7 @@ enum Strand {
 
 struct ProdigalHeader {
     using Fields = std::vector<std::string>;
+    using u_int32_t = unsigned int;
 
     Fields split(const std::string& s, const std::string& delimiter) {
         Fields fields;
